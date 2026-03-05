@@ -1,0 +1,97 @@
+using System.Collections;
+using System.Collections.Generic;
+using TMPro;
+using UnityEngine;
+
+public class Elevator : MonoBehaviour
+{
+    [Header("Refrences")]
+    [SerializeField] Transform cabel;
+    [SerializeField] TMP_Text currentFloorText;
+
+    [Header("Movement")]
+    [SerializeField] float speed = 3f;
+    [SerializeField] float floorStopTime = 1.5f;
+    private Vector3 targetPosition;
+    private bool isMoving = false;
+
+    [Header("State")]
+    public Direction direction = Direction.Idle;
+    public int currentFloor = 0;
+    private int targetFloor = -1;
+
+    private List<int> requests = new List<int>();
+
+
+    void Update()
+    {
+        if (!isMoving)
+            return;
+
+        transform.position = Vector3.MoveTowards(transform.position, targetPosition, speed * Time.deltaTime);
+
+        if (Vector3.Distance(transform.position, targetPosition) < 0.01f)
+        {
+            currentFloor = targetFloor;
+            direction = Direction.Idle;
+            isMoving = false;
+            currentFloorText.text = currentFloor.ToString();
+
+            transform.position = targetPosition;
+            StartCoroutine(FloorStop());
+        }
+    }
+
+    IEnumerator FloorStop()
+    {
+        yield return new WaitForSeconds(floorStopTime);
+        ProcessNextRequest();
+    }
+
+    public void MoveToFloor(int floorIndex)
+    {
+        if (requests.Contains(floorIndex)) return; // Already requested
+        if (floorIndex == currentFloor && !isMoving) return; // Already at the floor and not moving
+
+        requests.Add(floorIndex);
+        SortRequests();
+
+        if (!isMoving)
+        {
+            ProcessNextRequest();
+        }
+    }
+
+    void ProcessNextRequest()
+    {
+        if (requests.Count == 0)
+        {
+            direction = Direction.Idle;
+            return;
+        }
+
+        targetFloor = requests[0];
+        requests.RemoveAt(0);
+
+        if (targetFloor > currentFloor) direction = Direction.Up;
+        else if (targetFloor < currentFloor) direction = Direction.Down;
+        else direction = Direction.Idle;
+
+        targetPosition = new Vector3(transform.position.x, BuildingManager.Instance.floors[targetFloor].position.y, transform.position.z);
+
+        isMoving = true;
+    }
+
+    void SortRequests()
+    {
+        if (direction == Direction.Up)
+        {
+            requests.Sort();
+        }
+        else if (direction == Direction.Down)
+        {
+            requests.Sort();
+            requests.Reverse();
+        }
+    }
+}
