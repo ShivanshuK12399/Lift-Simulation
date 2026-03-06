@@ -21,7 +21,13 @@ public class Elevator : MonoBehaviour
     private int targetFloor = -1;
 
     private List<int> requests = new List<int>();
+    private FloorButton[] floorButtons;
 
+
+    private void Start()
+    {
+        floorButtons = FindObjectsOfType<FloorButton>();
+    }
 
     void Update()
     {
@@ -29,24 +35,58 @@ public class Elevator : MonoBehaviour
             return;
 
         transform.position = Vector3.MoveTowards(transform.position, targetPosition, speed * Time.deltaTime);
+        UpdateCurrentFloor();
 
         if (Vector3.Distance(transform.position, targetPosition) < 0.01f)
         {
-            currentFloor = targetFloor;
-            direction = Direction.Idle;
-            isMoving = false;
-            currentFloorText.text = currentFloor.ToString();
-
             transform.position = targetPosition;
             StartCoroutine(FloorStop());
         }
     }
 
+
+    void UpdateCurrentFloor()
+    {
+        float minDistance = float.MaxValue;
+        int closestFloor = currentFloor;
+
+        for (int i = 0; i < BuildingManager.Instance.floors.Length; i++)
+        {
+            float dist = Mathf.Abs(transform.position.y - BuildingManager.Instance.floors[i].position.y);
+
+            if (dist < minDistance)
+            {
+                minDistance = dist;
+                closestFloor = i;
+            }
+        }
+
+        if (closestFloor != currentFloor)
+        {
+            currentFloor = closestFloor;
+            currentFloorText.text = currentFloor.ToString();
+        }
+    }
+
+
     IEnumerator FloorStop()
     {
+        direction = Direction.Idle;
+        isMoving = false;
+
+        // Reset the button light for the current floor
+        foreach (FloorButton button in floorButtons)
+        {
+            if (button.floorIndex == currentFloor)
+            {
+                button.ResetButton();
+            }
+        }
+
         yield return new WaitForSeconds(floorStopTime);
         ProcessNextRequest();
     }
+
 
     public void MoveToFloor(int floorIndex)
     {
@@ -60,7 +100,12 @@ public class Elevator : MonoBehaviour
         {
             ProcessNextRequest();
         }
+        else
+        {
+            UpdateTargetIfNeeded();
+        }
     }
+
 
     void ProcessNextRequest()
     {
@@ -80,6 +125,41 @@ public class Elevator : MonoBehaviour
         targetPosition = new Vector3(transform.position.x, BuildingManager.Instance.floors[targetFloor].position.y, transform.position.z);
 
         isMoving = true;
+    }
+
+
+    void UpdateTargetIfNeeded()
+    {
+        if (requests.Count == 0) return;
+
+        if (direction == Direction.Up)
+        {
+            if (requests[0] < targetFloor && requests[0] > currentFloor)
+            {
+                targetFloor = requests[0];
+                targetPosition = new Vector3(
+                    transform.position.x,
+                    BuildingManager.Instance.floors[targetFloor].position.y,
+                    transform.position.z
+                );
+
+                requests.RemoveAt(0);
+            }
+        }
+        else if (direction == Direction.Down)
+        {
+            if (requests[0] > targetFloor && requests[0] < currentFloor)
+            {
+                targetFloor = requests[0];
+                targetPosition = new Vector3(
+                    transform.position.x,
+                    BuildingManager.Instance.floors[targetFloor].position.y,
+                    transform.position.z
+                );
+
+                requests.RemoveAt(0);
+            }
+        }
     }
 
     void SortRequests()

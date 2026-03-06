@@ -4,11 +4,13 @@ public class ElevatorController : MonoBehaviour
 {
     public Elevator[] elevators;
 
+    
     public void RequestElevator(int floorIndex, Direction requestDirection)
     {
         Elevator bestElevator = null;
         int bestPriority = int.MaxValue;
         float bestDistance = Mathf.Infinity;
+
 
         foreach (Elevator elevator in elevators)
         {
@@ -44,14 +46,5 @@ public class ElevatorController : MonoBehaviour
         {
             bestElevator.MoveToFloor(floorIndex);
         }
-    }
-
-    public void RequestElevatorUp(int floorIndex)
-    {
-        RequestElevator(floorIndex, Direction.Up);
-    }
-    public void RequestElevatorDown(int floorIndex)
-    {
-        RequestElevator(floorIndex, Direction.Down);
     }
 }
