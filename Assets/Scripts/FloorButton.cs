@@ -19,7 +19,7 @@ public class FloorButton : MonoBehaviour
 
     public void PressButton()
     {
-        if (isActive)
+        if (isActive || elevatorController.IsElevatorAlreadyPresent(floorIndex))
             return;
 
         isActive = true;

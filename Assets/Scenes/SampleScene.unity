@@ -1256,7 +1256,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0bc27db65da784c4f8399ee1c0f5c8c8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ElevatorController
-  speed: 0
+  speed: 50
   floorStopTime: 1.5
   elevators:
   - {fileID: 1312290818}

@@ -29,8 +29,8 @@ public class Elevator : MonoBehaviour
 
     private void Start()
     {
-        floorButtons = FindObjectsOfType<FloorButton>();
-        elevatorController= FindAnyObjectByType<ElevatorController>();
+        floorButtons = FindObjectsByType<FloorButton>(FindObjectsSortMode.None);
+        elevatorController = FindAnyObjectByType<ElevatorController>();
     }
 
     void Update()
@@ -84,7 +84,8 @@ public class Elevator : MonoBehaviour
         SortRequests(requestDirection);
 
         // Print all request values on one line
-        print(gameObject.name + ":" + string.Join("->", requests));
+        string directionStr = requestDirection == Direction.Up ? "Up" : "Down";
+        print($"{gameObject.name} going {directionStr}: {string.Join("->", requests)}");
 
         if (direction == Direction.Idle)
         {
@@ -156,23 +157,11 @@ public class Elevator : MonoBehaviour
 
     public bool IsGoingTowards(int floorIndex, Direction requestDirection)
     {
-        if (direction == Direction.Idle)
-        {
-            if (upRequests.Count > 0 && floorIndex >= currentFloor)
-                return requestDirection == Direction.Up;
+        if (direction == Direction.Up && floorIndex >= currentFloor)
+            return true;
 
-            if (downRequests.Count > 0 && floorIndex <= currentFloor)
-                return requestDirection == Direction.Down;
-        }
-
-        if (direction == requestDirection)
-        {
-            if (requestDirection == Direction.Up && floorIndex >= currentFloor)
-                return true;
-
-            if (requestDirection == Direction.Down && floorIndex <= currentFloor)
-                return true;
-        }
+        if (direction == Direction.Down && floorIndex <= currentFloor)
+            return true;
 
         return false;
     }
@@ -180,6 +169,22 @@ public class Elevator : MonoBehaviour
     public bool HasPendingRequests()
     {
         return upRequests.Count > 0 || downRequests.Count > 0;
+    }
+
+    public int GetPendingRequestCount()
+    {
+        return upRequests.Count + downRequests.Count;
+    }
+
+    public bool HasRequest(int floor, Direction dir)
+    {
+        if (dir == Direction.Up)
+            return upRequests.Contains(floor);
+
+        if (dir == Direction.Down)
+            return downRequests.Contains(floor);
+
+        return false;
     }
 
     IEnumerator FloorStop()
