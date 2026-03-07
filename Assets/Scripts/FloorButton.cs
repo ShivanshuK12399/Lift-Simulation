@@ -4,10 +4,12 @@ using UnityEngine.UI;
 public class FloorButton : MonoBehaviour
 {
     public int floorIndex = 0;
+    public Direction buttonDirection;
 
     private Image buttonLight;
     private ElevatorController elevatorController;
     private bool isActive = false;
+
 
     private void Start()
     {
@@ -15,25 +17,15 @@ public class FloorButton : MonoBehaviour
         buttonLight = GetComponent<Image>();
     }
 
-    void PressButton()
+    public void PressButton()
     {
         if (isActive)
             return;
 
         isActive = true;
         buttonLight.color = Color.yellow;
-    }
 
-    public void PressUpButton()
-    {
-        PressButton();
-        elevatorController.RequestElevator(floorIndex, Direction.Up);
-    }
-
-    public void PressDownButton()
-    {
-        PressButton();
-        elevatorController.RequestElevator(floorIndex, Direction.Down);
+        elevatorController.RequestElevator(floorIndex, buttonDirection);
     }
 
     public void ResetButton()

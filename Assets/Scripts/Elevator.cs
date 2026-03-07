@@ -5,37 +5,40 @@ using UnityEngine;
 
 public class Elevator : MonoBehaviour
 {
+
     [Header("Refrences")]
     [SerializeField] Transform cabel;
     [SerializeField] TMP_Text currentFloorText;
+    private ElevatorController elevatorController;
 
-    [Header("Movement")]
-    [SerializeField] float speed = 3f;
-    [SerializeField] float floorStopTime = 1.5f;
-    private Vector3 targetPosition;
-    private bool isMoving = false;
 
     [Header("State")]
     public Direction direction = Direction.Idle;
     public int currentFloor = 0;
     private int targetFloor = -1;
 
-    private List<int> requests = new List<int>();
+
+    private List<int> upRequests = new List<int>(); // Contains the list of requested floors in the upward direction
+    private List<int> downRequests = new List<int>(); // Contains the list of requested floors in the downward direction
     private FloorButton[] floorButtons;
+
+    private Vector3 targetPosition;
+    private bool isMoving = false;
+
 
 
     private void Start()
     {
         floorButtons = FindObjectsOfType<FloorButton>();
+        elevatorController= FindAnyObjectByType<ElevatorController>();
     }
 
     void Update()
     {
-        if (!isMoving)
-            return;
+        if (!isMoving) return;
 
-        transform.position = Vector3.MoveTowards(transform.position, targetPosition, speed * Time.deltaTime);
-        UpdateCurrentFloor();
+        transform.position = Vector3.MoveTowards(transform.position, targetPosition, elevatorController.speed * Time.deltaTime);
+        UpdateCurrentFloor();  // Update the current floor based on the elevator's position
 
         if (Vector3.Distance(transform.position, targetPosition) < 0.01f)
         {
@@ -69,109 +72,165 @@ public class Elevator : MonoBehaviour
     }
 
 
-    IEnumerator FloorStop()
+    public void MoveToFloor(int floorIndex, Direction requestDirection)
     {
-        direction = Direction.Idle;
-        isMoving = false;
+        // Gives the Up/Down requestList of the elevator
+        List<int> requests = GetRequestList(requestDirection);
 
-        // Reset the button light for the current floor
-        foreach (FloorButton button in floorButtons)
-        {
-            if (button.floorIndex == currentFloor)
-            {
-                button.ResetButton();
-            }
-        }
-
-        yield return new WaitForSeconds(floorStopTime);
-        ProcessNextRequest();
-    }
-
-
-    public void MoveToFloor(int floorIndex)
-    {
         if (requests.Contains(floorIndex)) return; // Already requested
         if (floorIndex == currentFloor && !isMoving) return; // Already at the floor and not moving
 
         requests.Add(floorIndex);
-        SortRequests();
+        SortRequests(requestDirection);
 
-        if (!isMoving)
+        // Print all request values on one line
+        print(gameObject.name + ":" + string.Join("->", requests));
+
+        if (direction == Direction.Idle)
         {
-            ProcessNextRequest();
+            if (floorIndex > currentFloor) direction = Direction.Up;
+            else if (floorIndex < currentFloor) direction = Direction.Down;
         }
-        else
-        {
-            UpdateTargetIfNeeded();
-        }
+
+        ProcessNextRequest();
     }
 
 
     void ProcessNextRequest()
     {
-        if (requests.Count == 0)
+        List<int> requests = null;
+
+        if (direction == Direction.Up)
+        {
+            if (upRequests.Count > 0)
+                requests = upRequests;
+            else if (downRequests.Count > 0)
+            {
+                direction = Direction.Down;
+                requests = downRequests;
+            }
+        }
+        else if (direction == Direction.Down)
+        {
+            if (downRequests.Count > 0)
+                requests = downRequests;
+            else if (upRequests.Count > 0)
+            {
+                direction = Direction.Up;
+                requests = upRequests;
+            }
+        }
+        else // Idle
+        {
+            if (upRequests.Count > 0)
+            {
+                direction = Direction.Up;
+                requests = upRequests;
+            }
+            else if (downRequests.Count > 0)
+            {
+                direction = Direction.Down;
+                requests = downRequests;
+            }
+        }
+
+        if (requests == null || requests.Count == 0)
         {
             direction = Direction.Idle;
             return;
         }
 
         targetFloor = requests[0];
-        requests.RemoveAt(0);
 
         if (targetFloor > currentFloor) direction = Direction.Up;
         else if (targetFloor < currentFloor) direction = Direction.Down;
-        else direction = Direction.Idle;
 
-        targetPosition = new Vector3(transform.position.x, BuildingManager.Instance.floors[targetFloor].position.y, transform.position.z);
+        targetPosition = new Vector3(
+            transform.position.x,
+            BuildingManager.Instance.floors[targetFloor].position.y,
+            transform.position.z
+        );
 
         isMoving = true;
     }
 
-
-    void UpdateTargetIfNeeded()
+    public bool IsGoingTowards(int floorIndex, Direction requestDirection)
     {
-        if (requests.Count == 0) return;
-
-        if (direction == Direction.Up)
+        if (direction == Direction.Idle)
         {
-            if (requests[0] < targetFloor && requests[0] > currentFloor)
-            {
-                targetFloor = requests[0];
-                targetPosition = new Vector3(
-                    transform.position.x,
-                    BuildingManager.Instance.floors[targetFloor].position.y,
-                    transform.position.z
-                );
+            if (upRequests.Count > 0 && floorIndex >= currentFloor)
+                return requestDirection == Direction.Up;
 
-                requests.RemoveAt(0);
-            }
+            if (downRequests.Count > 0 && floorIndex <= currentFloor)
+                return requestDirection == Direction.Down;
         }
-        else if (direction == Direction.Down)
+
+        if (direction == requestDirection)
         {
-            if (requests[0] > targetFloor && requests[0] < currentFloor)
-            {
-                targetFloor = requests[0];
-                targetPosition = new Vector3(
-                    transform.position.x,
-                    BuildingManager.Instance.floors[targetFloor].position.y,
-                    transform.position.z
-                );
+            if (requestDirection == Direction.Up && floorIndex >= currentFloor)
+                return true;
 
-                requests.RemoveAt(0);
-            }
+            if (requestDirection == Direction.Down && floorIndex <= currentFloor)
+                return true;
         }
+
+        return false;
     }
 
-    void SortRequests()
+    public bool HasPendingRequests()
     {
-        if (direction == Direction.Up)
+        return upRequests.Count > 0 || downRequests.Count > 0;
+    }
+
+    IEnumerator FloorStop()
+    {
+        if (direction==Direction.Up) upRequests.Remove(targetFloor);
+        if (direction == Direction.Down) downRequests.Remove(targetFloor);
+
+        // Reset the button light for the current floor
+        foreach (FloorButton button in floorButtons)
+        {
+            if (button.floorIndex == currentFloor && button.buttonDirection == direction)
+            {
+                button.ResetButton();
+            }
+        }
+
+        direction = Direction.Idle;
+        isMoving = false;
+
+        yield return new WaitForSeconds(elevatorController.floorStopTime);
+        ProcessNextRequest();
+    }
+
+
+    void SortRequests(Direction requestDirection)
+    {
+        List<int> requests = GetRequestList(requestDirection);
+
+        if (requestDirection == Direction.Up)
         {
             requests.Sort();
         }
-        else if (direction == Direction.Down)
+        else if (requestDirection == Direction.Down)
         {
             requests.Sort();
             requests.Reverse();
         }
+    }
+
+    List<int> GetRequestList(Direction requestDirection)
+    {
+        switch (requestDirection)
+        {
+            case Direction.Up:
+                return upRequests;
+
+            case Direction.Down:
+                return downRequests;
+        }
+
+        // Return null list if list if idle;
+        return new List<int>();
     }
 }

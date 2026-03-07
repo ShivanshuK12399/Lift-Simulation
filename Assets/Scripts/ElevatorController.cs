@@ -2,9 +2,13 @@ using UnityEngine;
 
 public class ElevatorController : MonoBehaviour
 {
-    public Elevator[] elevators;
+    [Header("Movement")]
+    public float speed = 100f;
+    public float floorStopTime = 1.5f;
 
+    public Elevator[] elevators;
     
+
     public void RequestElevator(int floorIndex, Direction requestDirection)
     {
         Elevator bestElevator = null;
@@ -16,21 +20,19 @@ public class ElevatorController : MonoBehaviour
         {
             int priority = 3;
 
-            if (elevator.direction == requestDirection)
+            if (elevator.IsGoingTowards(floorIndex, requestDirection))
             {
-                if (requestDirection == Direction.Up && elevator.currentFloor <= floorIndex)
-                {
-                    priority = 1;
-                }
-                else if (requestDirection == Direction.Down && elevator.currentFloor >= floorIndex)
-                {
-                    priority = 1;
-                }
+                priority = 1; // already moving in correct direction
             }
             else if (elevator.direction == Direction.Idle)
             {
-                priority = 2;
+                priority = 2; // already working but not perfect direction
             }
+            else
+            {
+                priority = 3; // idle elevators last
+            }
+
 
             float distance = Mathf.Abs(elevator.currentFloor - floorIndex);
 
@@ -44,7 +46,19 @@ public class ElevatorController : MonoBehaviour
 
         if (bestElevator != null)
         {
-            bestElevator.MoveToFloor(floorIndex);
+            bestElevator.MoveToFloor(floorIndex, requestDirection);
         }
+    }
+
+    public bool IsElevatorAlreadyPresent(int floorIndex)
+    {
+        foreach (Elevator elevator in elevators)
+        {
+            if (elevator.currentFloor == floorIndex)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }
