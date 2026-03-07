@@ -12,34 +12,27 @@ public class ElevatorController : MonoBehaviour
     public void RequestElevator(int floorIndex, Direction requestDirection)
     {
         Elevator bestElevator = null;
-        int bestPriority = int.MaxValue;
         float bestDistance = Mathf.Infinity;
 
 
         foreach (Elevator elevator in elevators)
         {
-            int priority = 3;
-
-            if (elevator.IsGoingTowards(floorIndex, requestDirection))
-            {
-                priority = 1; // already moving in correct direction
-            }
-            else if (elevator.direction == Direction.Idle)
-            {
-                priority = 2; // already working but not perfect direction
-            }
-            else
-            {
-                priority = 3; // idle elevators last
-            }
-
-
             float distance = Mathf.Abs(elevator.currentFloor - floorIndex);
+            int load = elevator.GetPendingRequestCount();
 
-            if (priority < bestPriority || (priority == bestPriority && distance < bestDistance))
+            float directionPenalty = 0;
+
+            if (!elevator.IsGoingTowards(floorIndex, requestDirection))
+                directionPenalty = 5f; // discourage wrong direction elevators
+
+            if (elevator.HasRequest(floorIndex, Direction.Up) || elevator.HasRequest(floorIndex, Direction.Down))
+                continue;
+
+            float score = distance + load * 3 + directionPenalty;
+
+            if (score < bestDistance)
             {
-                bestPriority = priority;
-                bestDistance = distance;
+                bestDistance = score;
                 bestElevator = elevator;
             }
         }
@@ -54,7 +47,7 @@ public class ElevatorController : MonoBehaviour
     {
         foreach (Elevator elevator in elevators)
         {
-            if (elevator.currentFloor == floorIndex)
+            if (elevator.currentFloor == floorIndex && !elevator.HasPendingRequests())
             {
                 return true;
             }
