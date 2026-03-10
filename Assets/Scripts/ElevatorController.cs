@@ -17,20 +17,23 @@ public class ElevatorController : MonoBehaviour
 
         foreach (Elevator elevator in elevators)
         {
-            float distance = Mathf.Abs(elevator.currentFloor - floorIndex);
-            int load = elevator.GetPendingRequestCount();
+            float distance = Mathf.Abs(elevator.currentFloor - floorIndex); // dis btw current floor and requested floor
+            int load = elevator.GetPendingRequestCount(); // how many pending requests the elevator has
 
             float directionPenalty = 0;
 
-            if (!elevator.IsGoingTowards(floorIndex, requestDirection))
+            if (!elevator.IsGoingTowards(floorIndex, requestDirection)) // not going towards the requested floor
                 directionPenalty = 5f; // discourage wrong direction elevators
 
+            // If elevator already has UP or DOWN request for this floor, skip it - this is just a safety fallback
             if (elevator.HasRequest(floorIndex, Direction.Up) || elevator.HasRequest(floorIndex, Direction.Down))
                 continue;
 
+            // Combine distance, load, and direction penalty into a single score
+            // lower the score the better the elevator is for this request
             float score = distance + load * 3 + directionPenalty;
 
-            if (score < bestDistance)
+            if (bestDistance > score)
             {
                 bestDistance = score;
                 bestElevator = elevator;
@@ -47,7 +50,8 @@ public class ElevatorController : MonoBehaviour
     {
         foreach (Elevator elevator in elevators)
         {
-            if (elevator.currentFloor == floorIndex && !elevator.HasPendingRequests())
+            // if elevator is already at the requested floor and has no pending requests, consider it available
+            if (elevator.currentFloor == floorIndex && !elevator.HasPendingRequests()) 
             {
                 return true;
             }
